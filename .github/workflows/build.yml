@@ -1,29 +1,58 @@
-name: Gerar APK LF Driver Pro
+steps:
+  - name: Baixar codigo do repositorio
+    uses: actions/checkout@v3
 
-on:
-  push:
-    branches: [ "principal", "main", "master" ]
+  - name: Organizar e Renomear Arquivos do Projeto
+    run: |
+      mkdir -p src public app/src/main/java/com/lfdriverpro/app app/src/main/res/xml
+      
+      # Ajusta arquivos de configuracao web/capacitor se existirem
+      [ -f "package_configuration.md" ] && mv package_configuration.md package.json || true
+      [ -f "package.json.txt" ] && mv package.json.txt package.json || true
+      [ -f "vite_configuration.js" ] && mv vite_configuration.js vite.config.js || true
+      [ -f "html_entry_point.html" ] && mv html_entry_point.html index.html || true
+      [ -f "app_main_component.tsx" ] && mv app_main_component.tsx src/App.jsx || true
+      [ -f "main_entrypoint.md" ] && mv main_entrypoint.md src/main.jsx || true
+      
+      # Ajusta arquivos Kotlin nativos se existirem
+      [ -f "lf_driver_pro_extended_modules.kt" ] && cp lf_driver_pro_extended_modules.kt app/src/main/java/com/lfdriverpro/app/LFDriverPro_Extended_Modules.kt || true
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
+  - name: Configurar Node.js
+    uses: actions/setup-node@v3
+    with:
+      node-version: 18
 
-      - name: Configurar Java 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+  - name: Instalar Dependencias Web e Capacitor
+    run: |
+      npm install || npm install --force
+      npm run build || true
+      npm install @capacitor/core @capacitor/cli @capacitor/android || true
+      npx cap init "LF Driver Pro" "com.lfdriverpro.app" --web-dir dist || true
+      npx cap add android || true
+      npx cap copy || true
 
-      - name: Dar permissao de execucao ao Gradle
-        run: chmod +x gradlew || true
+  - name: Configurar Java 17
+    uses: actions/setup-java@v3
+    with:
+      java-version: '17'
+      distribution: 'temurin'
 
-      - name: Compilar APK de Debug
-        run: ./gradlew assembleDebug
+  - name: Compilar APK Android
+    run: |
+      if [ -d "android" ]; then
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleDebug
+      else
+        echo "Criando estrutura padrao de compilacao Gradle..."
+        chmod +x gradlew || true
+        ./gradlew assembleDebug || exit 1
+      fi
 
-      - name: Salvar APK Pronto
-        uses: actions/upload-artifact@v3
-        with:
-          name: LF-Driver-Pro-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+  - name: Disponibilizar APK para Download
+    uses: actions/upload-artifact@v3
+    with:
+      name: LF-Driver-Pro-APK
+      path: |
+        android/app/build/outputs/apk/debug/app-debug.apk
+        app/build/outputs/apk/debug/app-debug.apk
