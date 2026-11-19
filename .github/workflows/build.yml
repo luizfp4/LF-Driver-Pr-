@@ -1,0 +1,29 @@
+name: Gerar APK LF Driver Pro
+
+on:
+  push:
+    branches: [ "principal", "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Dar permissao de execucao ao Gradle
+        run: chmod +x gradlew || true
+
+      - name: Compilar APK de Debug
+        run: ./gradlew assembleDebug
+
+      - name: Salvar APK Pronto
+        uses: actions/upload-artifact@v3
+        with:
+          name: LF-Driver-Pro-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
